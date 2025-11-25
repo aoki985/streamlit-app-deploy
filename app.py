@@ -1,4 +1,39 @@
 import streamlit as st
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
+from langchain.schema import SystemMessage, HumanMessage
+
+# 環境変数の読み込み
+load_dotenv()
+
+def get_llm_response(user_message, selected_role):
+    """LLMからの回答を取得する関数"""
+    # モデルのオブジェクトを用意
+    llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.5)
+    
+    # 選択された役割に応じてシステムメッセージを分岐
+    if selected_role == "管理業務主任者":
+        system_message = """
+        あなたはマンション管理業務主任者です。実務的な観点から、
+        現場で発生する日常的な管理業務に関する質問に答えてください。
+        具体的な対応手順や実務的なアドバイスを提供してください。
+        """
+    else:
+        system_message = """
+        あなたはマンション管理士です。法律的・専門的な観点から、
+        管理組合運営や長期的な課題に関する質問に答えてください。
+        法的根拠や専門的な見解を含めて回答してください。
+        """
+    
+    # メッセージリストの用意
+    messages = [
+        SystemMessage(content=system_message),
+        HumanMessage(content=user_message)
+    ]
+    
+    # LLMからの回答取得
+    response = llm.invoke(messages)
+    return response.content
 
 st.title("マンション管理業務アプリ: 現場管理業務用")
 
@@ -31,70 +66,22 @@ else:
 if st.button("回答を取得"):
     st.divider()
 
-    if selected_item == "管理業務主任者":
-        if input_message:
-            st.write("### 📋 管理業務主任者からの回答")
-            st.info(f"**ご質問内容:** {input_message}")
-            
-            # 管理業務主任者による実務的な回答
-            response = f"""
-**【管理業務主任者の見解】**
-
-ご相談いただいた内容について、実務的な観点から回答いたします。
-
-**対応手順:**
-1. まず、問題の緊急性を確認します
-2. 管理規約および使用細則を確認します
-3. 予算内での対応可否を検討します
-4. 必要に応じて理事会への報告を行います
-
-**推奨される対応:**
-- 速やかに現場確認を実施してください
-- 関係者（居住者・理事会）への連絡を行ってください
-- 対応記録を管理台帳に記載してください
-
-**注意事項:**
-この問題は通常業務の範囲内で対応可能です。特別な事情がある場合は、マンション管理士への相談も検討してください。
-
-**文字数:** {len(input_message)}文字
-            """
-            st.markdown(response)
-
-        else:
-            st.error("問題内容を入力してから「回答を取得」ボタンを押してください。")
-
+    if input_message:
+        with st.spinner('回答を生成中...'):
+            # LLMから回答を取得
+            try:
+                response = get_llm_response(input_message, selected_item)
+                
+                if selected_item == "管理業務主任者":
+                    st.write("### 📋 管理業務主任者からの回答")
+                else:
+                    st.write("### 🏢 マンション管理士からの回答")
+                
+                st.info(f"**ご質問内容:** {input_message}")
+                st.markdown(response)
+                
+            except Exception as e:
+                st.error(f"エラーが発生しました: {str(e)}")
+                st.error("OpenAI APIキーが正しく設定されているか確認してください。")
     else:
-        if input_message:
-            st.write("### 🏢 マンション管理士からの回答")
-            st.info(f"**ご質問内容:** {input_message}")
-            
-            # マンション管理士による専門的な回答
-            response = f"""
-**【マンション管理士の見解】**
-
-ご相談いただいた内容について、法律的・専門的な観点から回答いたします。
-
-**法的根拠の確認:**
-- 区分所有法に基づく検討
-- マンション標準管理規約との照合
-- 関連法令（建築基準法、消防法等）の確認
-
-**専門的見解:**
-- 長期的な視点での影響を考慮する必要があります
-- 管理組合の意思決定プロセスを適切に進めてください
-- 必要に応じて専門業者への調査依頼を検討してください
-
-**推奨事項:**
-- 理事会での十分な協議が必要です
-- 総会決議が必要な場合は適切な手続きを踏んでください
-- 組合員への丁寧な説明と合意形成を図ってください
-
-**補足:**
-複雑な問題や特殊なケースについては、個別の詳細な調査が必要になる場合があります。
-
-**文字数:** {len(input_message)}文字
-            """
-            st.markdown(response)
-
-        else:
-            st.error("問題内容を入力してから「回答を取得」ボタンを押してください。")
+        st.error("問題内容を入力してから「回答を取得」ボタンを押してください。")
